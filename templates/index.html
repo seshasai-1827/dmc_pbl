@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Distributed MIMO Visualizer</title>
+    <style>
+        body { background: #0f172a; color: white; font-family: 'Inter', sans-serif; display: flex; padding: 40px; gap: 40px; }
+        #map-container { position: relative; border-radius: 12px; border: 2px solid #334155; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        #map-img { width: 750px; display: block; cursor: crosshair; }
+        #marker {
+            position: absolute; width: 14px; height: 14px; background: #f43f5e; 
+            border: 2px solid white; border-radius: 50%; display: none; transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px #f43f5e; pointer-events: none;
+        }
+        #panel { width: 420px; }
+        .card { background: #1e293b; padding: 20px; margin-bottom: 20px; border-radius: 12px; border: 2px solid transparent; transition: 0.3s ease; }
+        .winner { border-color: #22d3ee; background: #0c4a6e; transform: scale(1.02); }
+        .gain-val { font-size: 1.2rem; font-weight: bold; color: #22d3ee; }
+        .weights { font-family: monospace; font-size: 10px; color: #94a3b8; background: #0f172a; padding: 10px; border-radius: 6px; margin-top: 10px; overflow-x: auto; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+<div id="map-container">
+    <img id="map-img" src="/static/scenario.png">
+    <div id="marker"></div>
+</div>
+
+<div id="panel">
+    <h1>System Analysis</h1>
+    <p style="color: #64748b;">Click the street grid to run 3 independent CNN inferences.</p>
+    <div id="results"></div>
+</div>
+
+<script>
+    const img = document.getElementById('map-img');
+    const marker = document.getElementById('marker');
+    const resultsDiv = document.getElementById('results');
+
+    img.onclick = function(e) {
+        const rect = img.getBoundingClientRect();
+        // Send normalized click (0-1) so server can map to real meters
+        const normX = (e.clientX - rect.left) / rect.width;
+        const normY = (e.clientY - rect.top) / rect.height;
+
+        fetch('/predict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ x: normX, y: normY })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const b = data.bounds;
+            const currentRect = img.getBoundingClientRect();
+
+            // Calibrate: Map snapped meter coordinates back to image pixels
+            const xPx = ((data.snapped_x - b.min_x) / (b.max_x - b.min_x)) * currentRect.width;
+            const yPx = ((data.snapped_y - b.min_y) / (b.max_y - b.min_y)) * currentRect.height;
+
+            marker.style.left = xPx + "px";
+            marker.style.top = yPx + "px";
+            marker.style.display = 'block';
+
+            renderCards(data);
+        });
+    };
+
+    function renderCards(data) {
+        // Sort BS1 to top
+        data.results.sort((a, b) => a.bs - b.bs);
+        
+        let html = '';
+        data.results.forEach(res => {
+            const isWinner = res.bs === data.best_bs;
+            html += `
+                <div class="card ${isWinner ? 'winner' : ''}">
+                    <div style="display:flex; justify-content: space-between;">
+                        <strong>Base Station ${res.bs}</strong>
+                        <span class="gain-val">${res.gain} dB</span>
+                    </div>
+                    <div style="margin-top:5px; font-size: 0.9rem;">Beam Index: ${res.beam}</div>
+                    <div class="weights">${res.weights.join(' | ')}</div>
+                </div>`;
+        });
+        resultsDiv.innerHTML = html;
+    }
+</script>
+
+</body>
+</html>

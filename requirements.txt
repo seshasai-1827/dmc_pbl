@@ -1,0 +1,15 @@
+# Web Framework
+Flask==3.0.2
+
+# Deep Learning and Numerical Processing
+# Note: NumPy version is pinned to avoid compatibility issues with TensorFlow 2.x
+numpy>=1.23.5,<2.0.0
+tensorflow>=2.15.0
+deepmimo>=4.0.0b11
+
+# Data Handling and Utilities
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Visualization (for generating the background scenario map)
+matplotlib>=3.8.0

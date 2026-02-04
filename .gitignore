@@ -1,0 +1,13 @@
+
+deepmimo_scenarios/
+*.zip
+
+channels_cache.npz
+__pycache__/
+*.npy
+*.npz
+
+venv/
+.env
+.DS_Store
+*.log
